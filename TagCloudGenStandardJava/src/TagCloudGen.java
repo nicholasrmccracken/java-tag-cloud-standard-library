@@ -1,15 +1,15 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Comparator;
-
-import components.map.Map;
-import components.map.Map1L;
-import components.set.Set;
-import components.set.Set1L;
-import components.simplereader.SimpleReader;
-import components.simplereader.SimpleReader1L;
-import components.simplewriter.SimpleWriter;
-import components.simplewriter.SimpleWriter1L;
-import components.sortingmachine.SortingMachine;
-import components.sortingmachine.SortingMachine1L;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Counts the word occurrences in a given input file and outputs an HTML
@@ -23,45 +23,46 @@ import components.sortingmachine.SortingMachine1L;
 public final class TagCloudGen {
 
     /**
-     * Compare keys of {@code Map.Pair<String, Integer>}s in lexicographic order
-     * while ignoring case.
+     * Compare keys of {@code Map.Entry<String, Integer>}s in lexicographic
+     * order while ignoring case.
      */
     private static class KeyLT
-            implements Comparator<Map.Pair<String, Integer>> {
+            implements Comparator<Map.Entry<String, Integer>> {
         @Override
-        public int compare(Map.Pair<String, Integer> o1,
-                Map.Pair<String, Integer> o2) {
+        public int compare(Map.Entry<String, Integer> o1,
+                Map.Entry<String, Integer> o2) {
 
             /*
              * Ensure a zero is only returned when both pairs, which includes
              * their key and value, are equal to one another to be consistent
              * with equals.
              */
-            int compare = o1.key().compareToIgnoreCase(o2.key());
+            int compare = o1.getKey().compareToIgnoreCase(o2.getKey());
             if (compare == 0) {
-                compare = o2.value().compareTo(o1.value());
+                compare = o2.getValue().compareTo(o1.getValue());
             }
             return compare;
         }
     }
 
     /**
-     * Compare values of {@code Map.Pair<String, Integer>}s in descending order.
+     * Compare values of {@code Map.Entry<String, Integer>}s in descending
+     * order.
      */
     private static class ValueLT
-            implements Comparator<Map.Pair<String, Integer>> {
+            implements Comparator<Map.Entry<String, Integer>> {
         @Override
-        public int compare(Map.Pair<String, Integer> o1,
-                Map.Pair<String, Integer> o2) {
+        public int compare(Map.Entry<String, Integer> o1,
+                Map.Entry<String, Integer> o2) {
 
             /*
              * Ensure a zero is only returned when both pairs, which includes
              * their key and value, are equal to one another to be consistent
              * with equals.
              */
-            int compare = o2.value().compareTo(o1.value());
+            int compare = o2.getValue().compareTo(o1.getValue());
             if (compare == 0) {
-                compare = o1.key().compareToIgnoreCase(o2.key());
+                compare = o1.getKey().compareToIgnoreCase(o2.getKey());
             }
             return compare;
         }
@@ -75,16 +76,17 @@ public final class TagCloudGen {
 
     /**
      * Generates the set of characters in the given {@code str} into the given
-     * {@code charSet}. Reused from SW1 Glossary.
+     * {@code charSet}.
      *
      * @param str
      *            the given {@code String}
      * @param charSet
-     *            the {@code Set} to be replaced
+     *            the {@code HashSet} to be replaced
      * @replaces charSet
      * @ensures charSet = entries(str)
      */
-    private static void generateElements(String str, Set<Character> charSet) {
+    private static void generateElements(String str,
+            HashSet<Character> charSet) {
         assert str != null : "Violation of: str is not null";
         assert charSet != null : "Violation of: charSet is not null";
 
@@ -93,23 +95,21 @@ public final class TagCloudGen {
          * temporary set, then replace the formal parameter charSet with the
          * elements from the temporary set.
          */
-        Set<Character> strEntries = charSet.newInstance();
         for (int i = 0; i < str.length(); i++) {
             char c = str.charAt(i);
 
             // Ensure duplicate characters are not accidentally added.
-            if (!strEntries.contains(c)) {
-                strEntries.add(c);
+            if (!charSet.contains(c)) {
+                charSet.add(c);
             }
         }
-        charSet.transferFrom(strEntries);
     }
 
     /**
      * Returns the first "word" (maximal length string of characters not in
      * {@code separators}) or "separator string" (maximal length string of
      * characters in {@code separators}) in the given {@code text} starting at
-     * the given {@code position}. Reused from SW1 Glossary.
+     * the given {@code position}.
      *
      * @param text
      *            the {@code String} from which to get the word or separator
@@ -117,7 +117,7 @@ public final class TagCloudGen {
      * @param position
      *            the starting index
      * @param separators
-     *            the {@code Set} of separator characters
+     *            the {@code HashSet} of separator characters
      * @return the first word or separator string found in {@code text} starting
      *         at index {@code position}
      * @requires 0 <= position < |text|
@@ -138,7 +138,7 @@ public final class TagCloudGen {
      * </pre>
      */
     private static String nextWordOrSeparator(String text, int position,
-            Set<Character> separators) {
+            HashSet<Character> separators) {
         assert text != null : "Violation of: text is not null";
         assert separators != null : "Violation of: separators is not null";
         assert 0 <= position : "Violation of: 0 <= position";
@@ -179,7 +179,7 @@ public final class TagCloudGen {
      * @param inputFile
      *            the name of the input file
      * @param wordCountMap
-     *            the {@code Map} of unique words and their number of
+     *            the {@code HashMap} of unique words and their number of
      *            occurrences
      * @replaces wordCountMap
      * @requires <pre>
@@ -190,7 +190,7 @@ public final class TagCloudGen {
      *          occurrences from the file]
      */
     private static void countWords(String inputFile,
-            Map<String, Integer> wordCountMap) {
+            HashMap<String, Integer> wordCountMap) {
         assert inputFile != null : "Violation of: inputFile is not null";
         assert wordCountMap != null : "Violation of: termMap is not null";
 
@@ -198,61 +198,79 @@ public final class TagCloudGen {
          * Open an input stream to read from the file and a set to store all
          * characters that are not present in valid words.
          */
-        SimpleReader inFile = new SimpleReader1L(inputFile);
-        Set<Character> separators = new Set1L<Character>();
+        BufferedReader inFile;
+        try {
+            inFile = new BufferedReader(new FileReader(inputFile));
+        } catch (IOException e) {
+            System.err.println("Error opening file to read");
+            return;
+        }
+
+        HashSet<Character> separators = new HashSet<Character>();
         generateElements(" \"\t\n\r,-.!?[]'`~@#$%^&*-=+{}|<>;:/()", separators);
 
-        /*
-         * Store each word and it's number of occurrences in the map until the
-         * end of the file is reached.
-         */
-        while (!inFile.atEOS()) {
-            String text = inFile.nextLine();
-            int position = 0;
+        try {
+            /*
+             * Store each word and it's number of occurrences in the map until
+             * the end of the file is reached.
+             */
+            String text = inFile.readLine();
+            while (text != null) {
+                int position = 0;
 
-            while (position < text.length()) {
-                String wordOrSeparator = nextWordOrSeparator(text, position,
-                        separators);
-                position += wordOrSeparator.length();
+                while (position < text.length()) {
+                    String wordOrSeparator = nextWordOrSeparator(text, position,
+                            separators);
+                    position += wordOrSeparator.length();
 
-                /*
-                 * Determine if return from wordOrSeparator is a valid word that
-                 * should be stored by checking that it's first character is not
-                 * a separator.
-                 */
-                if (!separators.contains(wordOrSeparator.charAt(0))) {
                     /*
-                     * Update the occurrence count of the word if it already
-                     * exists in the map, and add to the map if it does not.
+                     * Determine if return from wordOrSeparator is a valid word
+                     * that should be stored by checking that it's first
+                     * character is not a separator.
                      */
-                    if (wordCountMap.hasKey(wordOrSeparator)) {
-                        int count = wordCountMap.value(wordOrSeparator);
-                        wordCountMap.replaceValue(wordOrSeparator, count + 1);
-                    } else {
-                        wordCountMap.add(wordOrSeparator, 1);
+                    if (!separators.contains(wordOrSeparator.charAt(0))) {
+                        /*
+                         * Update the occurrence count of the word if it already
+                         * exists in the map, and add to the map if it does not.
+                         */
+                        if (wordCountMap.containsKey(wordOrSeparator)) {
+                            int count = wordCountMap.get(wordOrSeparator);
+                            wordCountMap.replace(wordOrSeparator, count + 1);
+                        } else {
+                            wordCountMap.put(wordOrSeparator, 1);
+                        }
                     }
                 }
+
+                text = inFile.readLine();
             }
+        } catch (IOException e) {
+            System.err.println("Error reading from file");
         }
-        // Close file input stream.
-        inFile.close();
+
+        try {
+            // Close file input stream.
+            inFile.close();
+        } catch (IOException e) {
+            System.err.println("Error closing file");
+        }
     }
 
     /**
      * Stores a list of unique words of up to wordQuantity and their number of
-     * occurrences from the {@code Map} alphabetically in the given
-     * {@code SortingMachine}.
+     * occurrences from the {@code HashMap} alphabetically in the given
+     * {@code ArrayList}.
      *
      * @param wordQuantity
      *            the maximum number of unique words to store in topNWords
      * @param topNWords
-     *            the {@code SortingMachine} of words in descending order based
-     *            on their number of occurrences
+     *            the {@code ArrayList} of words in descending order based on
+     *            their number of occurrences
      * @param alphabetized
-     *            the {@code SortingMachine} of up to wordQuantity unique words
-     *            in alphabetical order
+     *            the {@code ArrayList} of up to wordQuantity unique words in
+     *            alphabetical order
      * @param wordCountMap
-     *            the {@code Map} of unique words and their number of
+     *            the {@code HashMap} of unique words and their number of
      *            occurrences
      *
      * @replaces alphabetized
@@ -260,11 +278,11 @@ public final class TagCloudGen {
      * [file named fileName exists but is not open] and 0 <= wordQuantity
      * </pre>
      * @ensures [SortingMachine contains up to wordQuantity terms ordered
-     *          alphabetically -> term queueing from Map]
+     *          alphabetically -> term queueing from HashMap]
      */
     private static void alphabetizeTopNWords(int wordQuantity,
-            SortingMachine<Map.Pair<String, Integer>> topNWords,
-            SortingMachine<Map.Pair<String, Integer>> alphabetized,
+            ArrayList<Map.Entry<String, Integer>> topNWords,
+            ArrayList<Map.Entry<String, Integer>> alphabetized,
             Map<String, Integer> wordCountMap) {
         assert 0 <= wordQuantity : "Violation of: 0 <= wordQuantity";
         assert topNWords != null : "Violation of: topNWords is not null";
@@ -272,17 +290,18 @@ public final class TagCloudGen {
         assert wordCountMap != null : "Violation of: wordCountMap is not null";
 
         //Store each word count pair from the map in the sorting machine.
-        for (Map.Pair<String, Integer> pair : wordCountMap) {
+        for (Map.Entry<String, Integer> pair : wordCountMap.entrySet()) {
             topNWords.add(pair);
         }
+        topNWords.sort(new ValueLT());
 
         // Store pairs up to wordQuantity and sort them alphabetically.
-        topNWords.changeToExtractionMode();
         int counter = 0;
         while (topNWords.size() > 0 && counter < wordQuantity) {
-            alphabetized.add(topNWords.removeFirst());
+            alphabetized.add(topNWords.remove(0));
             counter++;
         }
+        alphabetized.sort(new KeyLT());
     }
 
     /**
@@ -290,14 +309,14 @@ public final class TagCloudGen {
      * {@code wordCounts}.
      *
      * @param wordCounts
-     *            the {@code SortingMachine} to be searched through containing
-     *            pairs of their unique words and their number of occurrences
+     *            the {@code ArrayList} to be searched through containing pairs
+     *            of their unique words and their number of occurrences
      * @return minimum and maximum number of occurences in {@code wordCounts}
      * @ensures findMinMaxCounts = [min(values in {@code wordCounts}),
      *          max(values in {@code wordCounts})]
      */
     private static int[] findMinMaxCounts(
-            SortingMachine<Map.Pair<String, Integer>> wordCounts) {
+            ArrayList<Map.Entry<String, Integer>> wordCounts) {
         assert wordCounts != null : "Violation of: wordCountMap is not null";
 
         // Initialize array with seed values to ensure correct comparsion.
@@ -306,8 +325,8 @@ public final class TagCloudGen {
         minMax[1] = -1;
 
         // Iterate through the sorting machine to find the min and max.
-        for (Map.Pair<String, Integer> wordCount : wordCounts) {
-            int count = wordCount.value();
+        for (Map.Entry<String, Integer> wordCount : wordCounts) {
+            int count = wordCount.getValue();
             minMax[0] = Math.min(minMax[0], count);
             minMax[1] = Math.max(minMax[1], count);
         }
@@ -332,8 +351,8 @@ public final class TagCloudGen {
      * @param outputFile
      *            the name of the output file
      * @param alphabetized
-     *            the {@code SortingMachine} of top N occuring words in
-     *            alphabetical order
+     *            the {@code ArrayList} of top N occuring words in alphabetical
+     *            order
      * @clears alphabetized
      * @ensures <pre>
      * [generates HTML file with each unique word from the input file in an
@@ -343,13 +362,20 @@ public final class TagCloudGen {
      */
     private static void generateWordCountTable(String heading,
             String outputFile,
-            SortingMachine<Map.Pair<String, Integer>> alphabetized) {
+            ArrayList<Map.Entry<String, Integer>> alphabetized) {
         assert heading != null : "Violation of: heading is not null";
         assert outputFile != null : "Violation of: outputFile is not null";
         assert alphabetized != null : "Violation of: alphabetized is not null";
 
         // Open an output stream to write to a file stored in folder.
-        SimpleWriter fileOut = new SimpleWriter1L(outputFile);
+        PrintWriter fileOut;
+        try {
+            fileOut = new PrintWriter(
+                    new BufferedWriter(new FileWriter(outputFile)));
+        } catch (IOException e) {
+            System.err.println("Error opening file to write");
+            return;
+        }
 
         /*
          * Create opening tags including a title, linked css stylesheet, head,
@@ -378,12 +404,11 @@ public final class TagCloudGen {
          */
         final int maxFont = 37, minFont = 11;
         final int[] minMax = findMinMaxCounts(alphabetized);
-        alphabetized.changeToExtractionMode();
 
         while (alphabetized.size() > 0) {
-            Map.Pair<String, Integer> wordCount = alphabetized.removeFirst();
+            Map.Entry<String, Integer> wordCount = alphabetized.remove(0);
 
-            int count = wordCount.value();
+            int count = wordCount.getValue();
             // Determine class corresponding to font size with given formula
             int fontSize = minFont
                     + (maxFont * (count - minMax[0])) / (minMax[1] - minMax[0]);
@@ -391,7 +416,7 @@ public final class TagCloudGen {
             fileOut.print("<span style=\"cursor:default\" ");
             fileOut.print("class=\"" + "f" + fontSize + "\" ");
             fileOut.print("title=\"count: " + count + "\">");
-            fileOut.print(wordCount.key());
+            fileOut.print(wordCount.getKey());
             fileOut.println("</span>");
         }
 
@@ -400,6 +425,8 @@ public final class TagCloudGen {
         fileOut.println("</div>");
         fileOut.println("</body>");
         fileOut.println("</html>");
+
+        // Close file output stream.
         fileOut.close();
     }
 
@@ -410,26 +437,33 @@ public final class TagCloudGen {
      *            the command line arguments
      */
     public static void main(String[] args) {
-        // Open input and output streams to console.
-        SimpleReader in = new SimpleReader1L();
-        SimpleWriter out = new SimpleWriter1L();
+        // Open input streams to console.
+        BufferedReader in = new BufferedReader(
+                new InputStreamReader(System.in));
+        String inputFile, outputFile;
+        int wordQuantity;
 
-        /*
-         * Prompt user for the name of an input file to read words from and an
-         * output file to generate a tag cloud in, as well as the number of
-         * words to be included in the tag cloud.
-         */
-        out.print("Enter the name "
-                + "of an input file and it's path with a .txt extension: ");
-        String inputFile = in.nextLine();
-        out.print("Enter the name "
-                + "of an output file and it's path with a .html extension: ");
-        String outputFile = in.nextLine();
-        out.print("Enter the quantity of words for the tag cloud: ");
-        int wordQuantity = Integer.parseInt(in.nextLine());
+        try {
+            /*
+             * Prompt user for the name of an input file to read words from and
+             * an output file to generate a tag cloud in, as well as the number
+             * of words to be included in the tag cloud.
+             */
+            System.out.print("Enter the name "
+                    + "of an input file and it's path with a .txt extension: ");
+            inputFile = in.readLine();
+            System.out.print("Enter the name "
+                    + "of an output file and it's path with a .html extension: ");
+            outputFile = in.readLine();
+            System.out.print("Enter the quantity of words for the tag cloud: ");
+            wordQuantity = Integer.parseInt(in.readLine());
+        } catch (IOException e) {
+            System.err.println("Error reading user input");
+            return;
+        }
 
         // Store all words and their respective counts from input file in a map.
-        Map<String, Integer> wordCountMap = new Map1L<String, Integer>();
+        HashMap<String, Integer> wordCountMap = new HashMap<String, Integer>();
         countWords(inputFile, wordCountMap);
 
         /*
@@ -437,10 +471,8 @@ public final class TagCloudGen {
          * Line length cannot be fixed as the line is saved like this by
          * checkstyle.
          */
-        SortingMachine<Map.Pair<String, Integer>> topNWords = new SortingMachine1L<Map.Pair<String, Integer>>(
-                new ValueLT()),
-                alphabetized = new SortingMachine1L<Map.Pair<String, Integer>>(
-                        new KeyLT());
+        ArrayList<Map.Entry<String, Integer>> topNWords = new ArrayList<Map.Entry<String, Integer>>(),
+                alphabetized = new ArrayList<Map.Entry<String, Integer>>();
         alphabetizeTopNWords(wordQuantity, topNWords, alphabetized,
                 wordCountMap);
 
@@ -453,8 +485,11 @@ public final class TagCloudGen {
                 + inputFile;
         generateWordCountTable(heading, outputFile, alphabetized);
 
-        // Close input and output streams.
-        in.close();
-        out.close();
+        try {
+            // Close input stream.
+            in.close();
+        } catch (IOException e) {
+            System.err.println("Error closing input stream");
+        }
     }
 }
